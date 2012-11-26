@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='./rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=" "?>
+<?rfc authorship="no"?>
+<rfc docName="whatsnew" ipr="none">
+  <front>
+    <title abbrev="What's New">Abdera2 - What's New</title>
+    <author fullname="James M Snell" initials="J.M." surname="Snell">
+      <organization></organization>
+    </author>
+    <date month="December" year="2011" />
+    <abstract>
+      <t>TBD</t>
+    </abstract>
+  </front>
+  <middle>
+
+  <section title="Highlights">
+  
+    <t>Abdera2 is a major update to the project that introduces a broad range 
+    of new features and functionality as well as bug fixes and improved 
+    performance.</t>
+
+    <t>New features include:</t>
+    
+    <t><list>
+      <t>Updated all dependencies to latest versions</t>
+      <t>Introduced new dependencies on <eref target="http://joda-time.sourceforge.net/">Joda-Time</eref> 
+      and <eref target="http://code.google.com/p/guava-libraries/">Guava Libraries</eref></t>
+      <t>Refactored package layout, new packaging structure</t>
+      <t>New Common Code Library:
+        <list>
+          <t>Selector Framework, extension to the Guava Predicate API, used extensively throughout Abdera2.</t>
+          <t>Updated and Extended URI Template Implementation</t>
+          <t>Updated Unicode Support using ICU4J</t>
+          <t>Improved efficiency in IRI implementation</t>
+          <t>Enhanced ISO8601 Date/Time handling using Joda-Time, Guava and the Selector framework</t>
+          <t>Enhanced support for common HTTP Headers (Authentication, Cache Control, ETag, Preference, Web Linking)</t>
+          <t>Simplified Lang Tag Support</t>
+          <t>Enhanced Media Type Support</t>
+          <t>New lightweight "Pusher" interface.. acts as a shim for simple pub/sub applications.</t>
+          <t>Lightweight MapReduce implementation built around the Guava Function API designed primarily for relatively small, in-memory analysis operations. Supports asynchronous, non-blocking operations.</t>
+          <t>Simple Chained Invocation API extending the Guava Function API</t>
+          <t>API Key and One Time Password Implementations</t>
+          <t>Utilities for simplifying Hash and HMAC generation and validation</t>
+          <t>Variety of other useful utilities...</t>
+        </list></t>
+      <t>Updated Feed Object Model API, using Joda-Time for all Date-Time handling, use of the Selector API for filtering results</t>
+      <t>Simplified the Named Writer and Named Parser mechanism in the Atom implementation</t>
+      <t>Completely refactored HTTP Client API based around the Apache HTTP Client Components 4.x.</t>
+      <t>Support for Asynchronous, non-blocking HTTP Client operations leveraging the java.util.concurrent.Executor framework and java.util.concurrent.Future</t>
+      <t>Improved Atom Parsing Performance (my informal testing has demonstrated about a 20-25% improvement on average)</t>
+      <t>Complete JSON Activity Streams implementation:
+        <list>      
+          <t>Support for generating and consuming Activity Streams</t>
+          <t>Support for all core Object Types and Verbs</t>
+          <t>Support for a number of extension Object Types and Verbs</t>
+          <t>Fluent, factory-model API</t>
+          <t>Immutable, thread-safe objects</t>
+          <t>Streaming Serialization API</t>
+          <t>API for using existing Activities objects as template to create new objects</t>
+          <t>Extensible serialization/deserialization</t>
+          <t>Asynchronous, non-blocking parsing and serialization</t>
+          <t>Support for primary Activity Streams extensions such as Replies and Audience Targeting</t>
+          <t>Experimental mode that allows playing around with new experimental extensions</t>
+          <t>JSON Web Token Support</t>
+          <t>Type-safe dynamic extensibility API</t>
+          <t>Merge/Diff API</t>
+          <t>Filter API based on Selectors</t>
+          <t>Conversion of JSON Activity Stream to and from Atom</t>
+        </list></t>
+        <t>Server-side Publishing Server implementation has been extracted into a separate, independent project.</t>
+    </list></t>
+
+    <t>It is important to point out that Abdera2 is NOT binary compatible with 
+    the 1.x version. While much of the basic Feed Object Model (FOM) API 
+    remains unchanged, there have been many changes specifically in the area 
+    of Date handling and the introduction of the Selector framework. 
+    Accordingly, the Abdera2 Java Package has been changed to 
+    org.apache.abdera2.*.</t>
+    
+  </section>
+    
+  </middle>
+  <back></back>
+</rfc>

@@ -1,0 +1,2 @@
+org.apache.abdera2.ext.json.JSONWriter
+org.apache.abdera2.ext.activities.FeedToActivityWriter

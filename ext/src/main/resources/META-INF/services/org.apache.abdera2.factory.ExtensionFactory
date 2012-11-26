@@ -1,0 +1,7 @@
+org.apache.abdera2.ext.thread.ThreadExtensionFactory
+org.apache.abdera2.ext.features.FeaturesExtensionFactory
+org.apache.abdera2.ext.tombstones.TombstonesExtensionFactory
+org.apache.abdera2.ext.media.MediaExtensionFactory
+org.apache.abdera2.ext.opensearch.model.OpenSearchExtensionFactory
+org.apache.abdera2.ext.sharing.SharingExtensionFactory
+org.apache.abdera2.ext.rss.RssExtensionFactory

@@ -1,0 +1,954 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='./rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=" "?>
+<?rfc authorship="no"?>
+<rfc docName="common" ipr="none">
+  <front>
+    <title abbrev="Common">Abdera2 - Common Library</title>
+    <author fullname="James M Snell" initials="J.M." surname="Snell">
+      <organization></organization>
+    </author>
+    <date month="December" year="2011" />
+    <abstract>
+      <t>TBD</t>
+    </abstract>
+  </front>
+  <middle>
+
+    <section title="Date-Time Handling">
+    
+      <t>Date and Time Handling within Abdera2 extensively leverages the 
+      capabilities of both the 
+      <eref target="http://joda-time.sourceforge.net/">Joda-Time</eref> and 
+      <eref target="http://code.google.com/p/guava-libraries/">Guava Libraries</eref>.</t>
+      
+      <t>Specifically, Joda-Time handles all operations with regards to the 
+      handling of the ISO-8601 formatted timestamps required by both the 
+      Atom Syndication Format and JSON Activity Streams standards. The 
+      Guava Library is used as the foundation for a range of utilities 
+      that make working with those dates easier, and more fluid within 
+      the Abdera2 API. Use of the Date-Time utilities provided by the 
+      Common Library is driven deep and extensively throughout the Abdera2
+      API for both the Atom Syndication Format and Activity Streams implementations.</t>
+    
+      <t>For example, suppose we have a stream of Activity objects and we 
+      want to iterate only those published before the current date and time:</t>
+      
+      <figure><artwork>
+import static org.apache.abdera2.activities.extra.Extra.activityPublished;
+import static org.apache.abdera2.common.date.DateTimes.beforeNow;
+//...
+
+col.getItems(activityPublished(beforeNow()));
+      </artwork></figure>  
+      
+      <t>The response to getItems() called this way will be an Iterable whose
+      items specify published property values are date-times occurring before
+      now. Obviously, this is a bit of a contrived example given that, typically,
+      all items in the stream will be published before the current date and time,
+      but you should get the basic idea.</t>
+      
+      <t>In the following example, we ask only for the activities that have 
+      been published within the last 60 seconds:</t>
+      
+      <figure><artwork>
+DateTime now = now();
+DateTime before = now().minusSeconds(60);
+col.getItems(activityPublished(atOrBetween(before,now)));
+      </artwork></figure>
+      
+    </section>
+    
+    <section title="HTTP Headers">
+    
+      <t>The Abdera2 Common Library includes support for a handful of 
+      complex HTTP Headers including WWW-Authenticate, Cache-Control,
+      ETag, Link and Preference.</t>
+      
+      <section title="WWW-Authenticate">
+  
+        <t>The Authentication header support makes it easier to support
+        custom authentication mechanisms within Abdera2 applications. 
+        For instance, to use OAuth 2.0 Bearer Tokens, you can use:</t>
+      
+        <figure><artwork>
+  Authentication bearer = 
+    Authentication.make()
+      .scheme("bearer")
+      .param("realm", "example")
+      .get();
+        </artwork></figure>
+      
+        <figure><preamble>Which generates:</preamble><artwork>
+  WWW-Authenticate: bearer realm="example"
+        </artwork></figure>
+        
+        <t>Adding additional parameters is straightforward:</t>
+        
+        <figure><artwork>
+  Authentication bearer = 
+    Authentication.make()
+      .scheme("bearer")
+      .param("realm", "example")
+      .param("error", "invalid_token")
+      .param("error_description", "The access token expired")
+      .get();
+        </artwork></figure>
+      
+        <t>Parsing the header is equally straightforward:</t>
+        
+        <figure><artwork><![CDATA[
+  Iterable<Authentication> auths = 
+    Authentication.parse(
+      "bearer realm=\"example\", error=invalid_token"+
+      ", error_description=\"The access token expired\"");
+  
+  Authentication auth = auths.iterator().next();
+  
+  System.out.println(auth.getScheme());
+  for (String name : auth) {
+    System.out.println(
+      String.format(
+        "%s = %s",
+        name,
+        auth.getParam(name)));
+  }
+        ]]></artwork></figure>
+      
+      </section>
+    
+      <section title="Cache-Control">
+      
+        <t>The CacheControl class makes it simple to generate and parse any 
+        combination of Cache-Control directives:</t>
+        
+        <figure><artwork>
+  CacheControl cc = 
+    CacheControl.make()
+      .isPublic()
+      .maxAge(1000)
+      .mustRevalidate()
+      .get();
+        </artwork></figure>
+      
+        <figure><preamble>Generates:</preamble><artwork>
+  Cache-Control: public, must-revalidate, max-age=1000
+        </artwork></figure>
+       
+        <figure><artwork>
+  CacheControl cc = 
+    CacheControl.make()
+      .noCache()
+      .noStore()
+      .noTransform()
+      .isPrivate()
+      .get();
+        </artwork></figure>
+        
+        <figure><preamble>Generates:</preamble><artwork>
+  Cache-Control: private, no-cache, no-store, no-transform
+        </artwork></figure>
+        
+        <t>Extension directives are also supported:</t>
+        
+        <figure><artwork>
+  CacheControl cc = 
+    CacheControl.make()
+      .isPublic()
+      .extension("foo", "bar")
+      .get();
+        </artwork></figure>
+        
+        <figure><preamble>Generates:</preamble><artwork>
+  Cache-Control: public, foo=bar
+        </artwork></figure>
+       
+      </section>
+      
+      <section title="Entity Tags">
+      
+      <figure><preamble>Create a simple strong EntityTag:</preamble><artwork>
+  EntityTag tag = EntityTag.create("FooBarBaz")
+      </artwork></figure>
+      
+      <figure><preamble>Generates:</preamble><artwork>
+  ETag: "FooBarBaz"
+      </artwork></figure>
+      
+      <figure><preamble>Create a weak EntityTag:</preamble><artwork>
+  EntityTag tag = EntityTag.weak("FooBarBaz");
+      </artwork></figure>
+      
+      <figure><preamble>Generates:</preamble><artwork>
+  ETag: W/"FooBarBaz"
+      </artwork></figure>
+      
+      <figure><preamble>Generating an Entity Tag from source material:</preamble><artwork>
+  EntityTag tag = EntityTag.generate("foo","bar","baz");
+      </artwork></figure>
+      
+      <figure><preamble>Generates:</preamble><artwork>
+  ETag: "6DF23DC03F9B54CC38A0FC1483DF6E21"
+      </artwork></figure>
+      
+      <figure><preamble>Parsing Entity Tags:</preamble><artwork><![CDATA[
+  Iterable<EntityTag> list = 
+    EntityTag.parseTags(
+      "\"FooBarBaz\", W/\"6DF23DC03F9B54CC38A0FC1483DF6E21\"");
+  
+  for (EntityTag tag : list) {
+    System.out.println(
+      String.format(
+        "%s, is weak? %s",
+        tag.getTag(),
+        tag.isWeak()
+        ));
+      ]]></artwork></figure>
+      
+      <figure><preamble>Outputs:</preamble><artwork>
+  FooBarBaz, is weak? false
+  6DF23DC03F9B54CC38A0FC1483DF6E21, is weak? true
+      </artwork></figure>
+      
+      </section>
+    
+      <section title="Links">
+      
+      <figure><artwork>
+  WebLink link = 
+    WebLink.make()
+      .iri("styles.css")
+      .rel("stylesheet")
+      .title("Just an example")
+      .media("print")
+      .get();
+      </artwork></figure>
+      
+      <figure><preamble>Generates:</preamble><artwork><![CDATA[
+  Link: <styles.css>;rel="stylesheet";media="print";title="Just an example"
+      ]]></artwork></figure>
+      
+      <figure><preamble>Parsing:</preamble><artwork><![CDATA[
+  Iterable<WebLink> list =
+    WebLink.parse(
+      "<styles.css>;rel=\"stylesheet\";"+
+      "media=\"print\";title=\"Just an example\"");
+  
+  for (WebLink link : list) {
+    System.out.println(link.getIri());
+    System.out.println(link.getRel());
+    System.out.println(link.getMedia());
+    System.out.println(link.getTitle());
+  }
+      ]]></artwork></figure>
+      
+      <figure><preamble>Outputs:</preamble><artwork>
+  styles.css
+  [stylesheet]
+  [print]
+  Just an example
+      </artwork></figure>
+      
+      </section>
+  
+      <section title="Preference">
+      
+      <t>The <eref target="http://tools.ietf.org/html/draft-snell-http-prefer-10">Prefer header</eref> 
+      is a proposed extension to HTTP.</t>
+      
+      <figure><artwork>
+  import static org.apache.abdera2.common.http.Preference.*;
+      
+  System.out.println(
+    toString(
+      PREF_LENIENT, 
+      PREF_RETURN_ASYNCH,
+      WAIT(1000)));
+      </artwork></figure>
+      
+      <figure><preamble>Generates:</preamble><artwork>
+  Prefer: lenient,return-asynch,wait=1000
+      </artwork></figure>
+      
+      <figure><preamble>Parsing:</preamble><artwork><![CDATA[
+  Iterable<Preference> list = 
+    parse(
+      "lenient,return-asynch,wait=1000");
+  
+  if (contains(list, LENIENT)) {
+    // use lenient processing
+  }
+  
+  if (contains(list, RETURN_ASYNCH)) {
+    // use asynchronous processing
+    Preference wait = get(list, WAIT);
+    long time = wait.getLongValue();
+    // ...
+  }
+      ]]></artwork></figure>
+      
+      </section>
+    
+    </section>
+    
+    <section title="IO">
+    
+      <t>The Abdera2 Common Library contains a handful of specialized
+      InputStream and Reader implementations for performing a variety
+      of tasks including limited character set encoding detection based
+      on byte order marks, character code filtering, Multipart MIME 
+      parsing, peeking ahead in a stream without consuming the bytes, 
+      and rewinding an already read stream. These utilities are 
+      available in the org.apache.abdera2.common.io package.</t>
+      
+      <figure><preamble>Applying content compression to an output stream:</preamble><artwork>
+  ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    
+  OutputStream out = CompressionCodec.DEFLATE.wrap(bytes);
+  
+  byte[] bytes = ... // bytes to output
+  
+  out.write(bytes);
+  out.close();
+      </artwork></figure>
+    
+    </section>
+    
+    <section title="IRIs">
+    
+      <figure><artwork>
+  IRI iri = new IRI("http://example.org:8080/foo/bar?baz=xyz#123456");
+    
+  System.out.println(iri.getScheme());
+  System.out.println(iri.getHost());
+  System.out.println(iri.getPort());
+  System.out.println(iri.getPath());
+  System.out.println(iri.getQuery());
+  System.out.println(iri.getFragment());
+      </artwork></figure>
+    
+      <figure><artwork>
+  WebLink link = 
+    WebLink.make()
+      .iri("style.css")
+      .get();
+  
+  System.out.println(link.getResolvedIri(iri));
+      </artwork></figure>
+    
+    </section>
+    
+    <section title="Language Tags">
+    
+      <figure><preamble>A nonsensical example:</preamble><artwork>
+  Lang lang = Lang.parse("en-FR-Cyril");
+  
+  for (Subtag tag : lang) 
+    System.out.println(
+      String.format(
+        "%s\t%s",
+        tag,
+        tag.type()));
+      </artwork></figure>
+      
+      <figure><preamble>Outputs:</preamble><artwork>
+  en LANGUAGE
+  FR  REGION
+  cyril VARIANT
+      </artwork></figure>
+    
+      <figure><preamble>Testing a range:</preamble><artwork>
+  Range range = Range.parse("en-*-Cyril",true);  
+  if (range.matches(lang)) {
+    // language matches!
+  }
+      </artwork></figure>
+    
+    </section>
+    
+    <section title="Media Types">
+    
+      <t>TBD</t>
+      
+      <figure><preamble>Creating a javax.activation.MimeType without
+      having to catch the MimeTypeParseException error:</preamble>
+      <artwork>
+  MimeType mime = MimeTypeHelper.create("text/plain");
+      </artwork></figure>
+      
+      <figure><preamble>Creating an immutable javax.activation.MimeType
+      instance:</preamble><artwork>
+  MimeType mime = 
+    MimeTypeHelper.unmodifiableMimeType("text/plain");
+      </artwork></figure>
+    
+    </section>
+    
+    <section title="Pusher API">
+    
+      <t>TBD</t>
+    
+      <figure><artwork><![CDATA[
+  final ChannelManager cm = new SimpleChannelManager();
+  ExecutorService exec = getExitingExecutor();
+  final CountDownLatch latch = new CountDownLatch(3);
+  exec.execute(
+    new Runnable() {
+      public void run() {
+        Receiver<Activity> r = cm.getReceiver("foo");
+        r.startListening(
+          new SimpleListener<Activity>() {
+            public void onItem(Activity t) {
+              System.out.println(t.getObject().getDisplayName());
+              latch.countDown();
+            }
+          }
+        );
+      }
+    }
+  );
+  
+  Pusher<Activity> pusher = cm.getPusher("foo");
+  for (int n = 0; n < 3; n++) 
+    pusher.push(
+      gen.template()
+        .set("object",
+          makeNote()
+            .displayName(format("My note #%d",n+1)))
+      );
+  
+  latch.await();
+  cm.shutdown();
+      ]]></artwork></figure>
+    
+    </section>
+    
+    <section title="Security Utilities">
+
+      <section title="Hash Functions">
+      
+        <t>The org.apache.abdera2.common.security.HashHelper class provides
+        a handful of helpful utility methods and Guava Function implementations
+        for generating MD5 hashed, HMACs and simple digital signatures.</t>
+        
+        <figure><preamble>An MD5 generating Function object:</preamble><artwork><![CDATA[
+  Function<byte[],String> md5 = HashHelper.md5();
+  String hash = md5.apply(new byte[] {1,2,3,4,5,6,7,8,9,0});
+  System.out.println(hash);
+        ]]></artwork></figure>
+        
+        <figure><preamble>A SHA-256 generating Function object:</preamble><artwork><![CDATA[
+  byte[] data = new byte[] {1,2,3,4,3,2,1,2,3,4,3,2,1};
+  Key key = new SecretKeySpec(data, "RAW");
+  
+  Function<byte[],String> hmac = HashHelper.sha256(key);
+  String mac = hmac.apply(new byte[] {1,2,3,4,5,6,7,8,9,0});
+  
+  System.out.println(mac);
+        ]]></artwork></figure>
+      
+        <figure><preamble>A Digital Signature generating Function object:</preamble><artwork><![CDATA[
+  KeyPair pair = KeyHelper.generateKeyPair("DSA", 512);
+  Function<byte[],String> sig = HashHelper.sig(pair.getPrivate(), "DSA");
+  
+  String s = sig.apply(new byte[] {1,2,3,4,5,6,7,8,9,0});
+ 
+  System.out.println(s);
+        ]]></artwork></figure>
+      
+        <figure><preamble>A Digital Signature verifying Predicate object:</preamble><artwork><![CDATA[
+  Predicate<String> verify = 
+    HashHelper.stringSignatureValid(
+      pair.getPublic(), 
+      "DSA", 
+      new byte[] {1,2,3,4,5,6,7,8,9,0}); // the source material the verify
+  
+  System.out.println(verify.apply(s));
+        ]]></artwork></figure>
+      
+      </section>
+    
+      <section title="API Keys">
+      
+        <figure><preamble>Generating an API Key:</preamble><artwork>
+  byte[] key = new byte[] {1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0};
+
+  ApiKey apikey = ApiKey.STRONG(key);
+  
+  System.out.println(apikey.generateNext());
+        </artwork></figure>
+        
+      </section>
+    
+      <section title="One-Time-Passwords">
+      
+      <figure><preamble>A Time-based One-time Password:</preamble><artwork>
+  byte[] key = new byte[] {1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0};
+
+  Otp.Totp totp = new Otp.Totp(30, key);
+
+  System.out.println(totp.generateNext());
+      </artwork></figure>
+      
+      <figure><preamble>Implementing a custom One-Time Password Implementation:</preamble><artwork><![CDATA[
+  public static class MyOtp extends Otp {
+
+    public MyOtp(byte[] key, int size) {
+      super(key, size);
+    }
+
+    public MyOtp(byte[] key, String alg, int size) {
+      super(key, alg, size);
+    }
+
+    public MyOtp(byte[] key) {
+      super(key);
+    }
+
+    public MyOtp(Key key, int size) {
+      super(key, size);
+    }
+
+    public MyOtp(Key key, String alg, int size) {
+      super(key, alg, size);
+    }
+
+    public MyOtp(Key key) {
+      super(key);
+    }
+
+    public MyOtp(String key, int size) {
+      super(key, size);
+    }
+
+    public MyOtp(String key, String alg, int size) {
+      super(key, alg, size);
+    }
+
+    public MyOtp(String key) {
+      super(key);
+    }
+
+    private final AtomicInteger counter = new AtomicInteger();
+    
+    @Override
+    protected byte[] getMovingFactor() {
+      int val = counter.incrementAndGet();
+      return new byte[] {
+          (byte)(val >>> 24),
+          (byte)(val >>> 16),
+          (byte)(val >>> 8),
+          (byte)val};
+    }
+    
+  }
+      ]]></artwork></figure>
+      
+      <figure><preamble>Using the custom OTP provider:</preamble><artwork>
+  Otp otp = new MyOtp();
+  System.out.println(otp.generateNext());
+      </artwork></figure>
+      
+      </section>
+
+    </section>
+    
+    <section title="Selector Framework">
+    
+      <t>The Abdera2 Selector Framework is an extension to the Guava 
+      Libraries <eref target="http://docs.guava-libraries.googlecode.com/git/javadoc/com/google/common/base/Predicate.html">
+      Predicate</eref> interface and is used extensively throughout 
+      the Abdera2 API. A single Selector instance can be used to perform
+      a broad range of tests and conditions operations.</t>
+      
+      <figure><preamble>Creating a simple selector:</preamble><artwork><![CDATA[
+  AbstractSelector<String> selector = 
+    new AbstractSelector<String>() {
+      public boolean select(Object item) {
+        return item.equals("Foo");
+      }      
+  };
+      ]]></artwork></figure>
+      
+      <figure><preamble>First, let's create a simple set:</preamble><artwork><![CDATA[
+  ImmutableSet<String> set = of("Foo","Bar");]]></artwork></figure>
+  
+      <figure><preamble>We can test every item in the set...</preamble><artwork><![CDATA[
+  System.out.println(selector.all(set)); // false
+  System.out.println(selector.any(set)); // true 
+  System.out.println(selector.none(set)); // false
+      ]]></artwork></figure>
+  
+      <figure><preamble>Or perform filtering operations on the set...</preamble><artwork><![CDATA[
+  System.out.println(selector.filter(set)); // outputs ["Foo"]
+  System.out.println(selector.filterOut(set)); // outputs ["Bar"]
+      ]]></artwork></figure>
+
+      <figure><preamble>Or pick matching items out of the set...</preamble><artwork><[!CDATA[
+  System.out.println(selector.choose(set)); // selects "Foo"
+  System.out.println(selector.chooseNot(set)); // selects "Bar"
+      ]]></artwork></figure>
+ 
+      <figure><preamble>Or use the selector as a Predicate object:</preamble><artwork><![CDATA[
+  System.out.println(selector.apply("Foo")); // true
+  System.out.println(selector.apply("Bar")); // false
+      ]]></artwork></figure>
+
+      <figure><preamble>Or as a constraint:</preamble><artwork><![CDATA[
+  System.out.println(selector.checkElement("Foo")); // Passes
+  
+  try {
+    System.out.println(selector.checkElement("Bar"));
+  } catch (IllegalArgumentException e) {
+    // error is thrown
+  }
+      ]]></artwork></figure>
+      
+      <figure><preamble>Or as a test...</preamble><artwork><![CDATA[
+  System.out.println(selector.test("Foo")); // outputs "Foo"
+  System.out.println(selector.test("Bar")); // outputs null
+  
+  System.out.println(selector.test("Foo", "Bar")); // outputs "Foo"
+  System.out.println(selector.test("Baz", "Bar")); // outputs "Bar"
+      ]]></artwork></figure>
+    
+      <figure><preamble>Selectors can be composed together with others 
+      to perform more complex matching operations. For instance, the 
+      follow will select no more than 5 Strings matching either "Foo" 
+      or "Bar":</preamble><artwork><![CDATA[
+  Selector<String> selector = 
+    Selectors.of("Foo")
+      .or(Selectors.of("Bar"))
+        .limit(5);
+      ]]></artwork></figure>
+      
+      <t>Most Selector implementations are threadsafe and immutable, maintaining
+      no internal state. However, Selectors returned by the limit() method, illustrated
+      above, maintain an internal counter and are not considered to be threadsafe. 
+      Such Selectors should implement the org.apache.abdera2.common.selector.StatefulSelector
+      interface to indicate that they are not threadsafe.</t>
+    
+    </section>
+    
+    <section title="URI Templates">
+    
+      <t>Abdera2 includes an implementation of the current URI Template
+      <eref target="http://tools.ietf.org/html/draft-gregorio-uritemplate-07">specification</eref>.
+      A URI Template is a specially formatted string containing tokens that 
+      can be replaced to expand into a URI or IRI. For example:</t>
+      
+      <figure><artwork>
+  private static final Template template =
+    new Template(
+      "http://example.org/~{user}{/categories*}{?foo,bar}");
+      </artwork></figure>
+      
+      <figure><preamble>Expanding the template using a java.util.Map:</preamble><artwork><![CDATA[
+  MapContext context = new MapContext();
+  context.put("user", "johndoe");
+  context.put("categories", of("a","b","c"));
+  context.put("foo", "xyz");
+  context.put("bar", "123");
+  
+  System.out.println(template.expand(context));
+      ]]></artwork></figure>
+      
+      <t>The URI generated by this template is: 
+      http://example.org/~johndoe/a/b/c?foo=xyz&bar=123</t>
+      
+      <figure><preamble>Expanding the template using a com.google.common.collect.Multimap:</preamble><artwork<![CDATA[
+  Multimap<String, Object> map = 
+    LinkedHashMultimap.create();
+  map.put("user", "james");
+  map.put("categories", "a");
+  map.put("categories", "b");
+  map.put("categories", "c");
+  map.put("foo", "abc");
+  map.put("bar", "xyz");
+  System.out.println(template.expand(map));
+      ]]></figure>
+      
+      <figure><preamble>Expanding the template using a Java Object:</preamble><artwork><![CDATA[
+  public static class MyObject {
+    public String user = "james";
+    public List<String> getCategories() {
+      return ImmutableList.of("a","b","c");
+    }
+    public Foo getFoo() {
+      return new Foo();
+    }
+    public String getBar() {
+      return "xyz";
+    }
+  }
+  static class Foo {
+    public String toString() {
+      return "xyz";
+    }
+  }
+  
+  System.out.println(template.expand(new MyObject()));
+      ]]></artwork></figure>
+    
+    </section>
+
+    <section title="Lightweight Map-Reduce API">
+
+      <t>TBD</t>
+
+    <figure><artwork><![CDATA[
+  private final static Function<
+    Iterable<Pair<Void, Activity>>, 
+    Iterable<Pair<String, Iterable<Integer>>>> f1 =
+      compose(
+        new MyMapper(),
+        MapRed.<String,ASObject>countingReducer()
+      );
+
+  private final static ReducerFunction<String,Integer,Integer,String> f2 =
+      asFunction(MapRed.<String,Integer>invertReducer(), 
+      Collections.<Integer>reverseOrder()); 
+  
+  private final static Function<
+    Iterable<Pair<Void, Activity>>, 
+    Iterable<Pair<Integer,Iterable<String>>>> f3 = 
+      Functions.compose(f2,f1);
+   
+  private final static ExecutorService exec = 
+    MoreExecutors2.getExitingExecutor();
+  
+  private static final Function<Collection<Activity>,Iterable<Pair<Void, Activity>>> transform = 
+    new Function<Collection<Activity>,Iterable<Pair<Void, Activity>>>() {
+      public Iterable<Pair<Void, Activity>> apply(Collection<Activity> input) {
+        return 
+          Pair.<Void,Activity>make()
+            .index(MoreFunctions.<Activity>alwaysVoid(), input.getItems());
+      }
+  };
+  
+  private final static Function<
+    Collection<Activity>, 
+    Future<Iterable<Pair<Integer,Iterable<String>>>>> ff = 
+    Functions.compose(
+    MoreFunctions.<
+      Iterable<Pair<Void, Activity>>, 
+      Iterable<Pair<Integer,Iterable<String>>>>futureFunction(f3,exec),
+    transform);
+
+  private Activity getActivity(String name,int n) {
+    return Activity.makeActivity()
+      .actor(PersonObject.makePerson(name))
+      .id(String.format("urn:%s:%s",name,n))
+      .get();
+  }
+  
+  @Test
+  public void testMapRed() throws Exception {
+    Collection<Activity> col = 
+      Collection.<Activity>makeCollection()
+       .item(getActivity("Joe",1))
+       .item(getActivity("Joe",2))
+       .item(getActivity("Mark",3))
+       .item(getActivity("Mark",4))
+       .item(getActivity("Sally",5))
+       .get();
+    
+    // This is basically MapReduce contained within a Function,
+    // Runs asynch using exiting executorservice... call to 
+    // ff.apply(gen).get() hides all the magic...
+    // this particular function looks at the activity stream
+    // and counts the number of activities per actor
+    
+    Iterable<Pair<Integer,Iterable<String>>> ret = ff.apply(col).get();
+    Pair<Integer,Iterable<String>> first = Iterables.get(ret,0);
+    Pair<Integer,Iterable<String>> second = Iterables.get(ret,1);
+    assertEquals(Integer.valueOf(2),first.first());
+    assertThat(first.second(),hasItems("Joe","Mark"));
+    assertEquals(Integer.valueOf(1),second.first());
+    assertThat(second.second(),hasItems("Sally"));
+  }
+
+  static class MyMapper 
+    implements Mapper<Void,Activity,String,ASObject> {
+    public void map(
+      Void key, 
+      Activity val, 
+      Collector<String,ASObject> context) {
+        String ot = val.getActor().getDisplayName();
+        context.collect(ot!=null?ot:"", val.getActor());
+    }    
+  }
+    ]]></artwork></figure>
+
+    <figure><preamble>Running this code will result in output like (the value 
+    of ret is an iterable containing the following data):</preamble><artwork>
+  2, [Joe, Mark]
+  1, [Sally]
+    </artwork></figure>
+
+    <t>There's quite a bit there... so let's break down exactly what's going on...</t>
+
+    <t>First of all, the Abdera2 MapReduce implementation is integrated tightly 
+    with the Guava Libraries Function interface. Essentially, all of the core 
+    components of the MapReduce operations (e.g. the mapper, the reducer, 
+    combiners, etc) are all implemented as Function objects. </t>
+
+    <figure><preamble>For instance, we define an initial Mapper function with 
+    a basic counting reducer using this bit of code:</preamble><artwork><![CDATA[
+  private final static Function<
+    Iterable<Pair<Void, Activity>>, 
+    Iterable<Pair<String, Iterable<Integer>>>> f1 =
+      compose(
+        new MyMapper(),
+        MapRed.<String,ASObject>countingReducer()
+      );
+    ]]></artwork></figure>
+
+    <t>The MyMapper class is straightforward and should be recognizable to 
+    anyone familiar with MapReduce in general...</t>
+    
+    <figure><artwork><![CDATA[
+  static class MyMapper 
+    implements Mapper<Void,Activity,String,ASObject> {
+    public void map(
+      Void key, 
+      Activity val, 
+      Collector<String,ASObject> context) {
+        String ot = val.getActor().getDisplayName();
+        context.collect(ot!=null?ot:"", val.getActor());
+    }    
+  }
+    ]]></artwork></figure>
+
+    <t>If it's not clear what's going on in the mapper, we basically take an 
+    Activity as input, grab the displayName of the Actor object, and collect 
+    using the displayName as key and the actor object as the value.  The 
+    counting reducer, then, goes through and counts the number of unique 
+    values we've collected. This particular implementation doesn't keep track 
+    of different actors who happen to share the same name, but that's not 
+    important for now.</t>
+
+    <t>Note that the mapper and the counting reducer are wrapped inside a 
+    Guava Function object that takes an Iterable of 
+    org.apache.abdera2.common.misc.Pair&lt;Void,Activity&gt; objects and 
+    outputs an Iterable of org.apache.abdera2.common.misc.Pair&lt;String,Iterable&lt;Integer&gt;&gt; 
+    objects. The output is a mapping of each actor displayName to the number of 
+    activities in which that name appeared in the input collection.</t>
+
+    <t>That gives us our counts, but doesn't quite give us the output we 
+    want.. so we need to define a bit more...</t>
+
+    <figure><artwork><![CDATA[
+  private final static ReducerFunction<String,Integer,Integer,String> f2 =
+      asFunction(MapRed.<String,Integer>invertReducer(), 
+      Collections.<Integer>reverseOrder()); 
+    ]]></artwork></figure>
+
+    <t>This code creates another function that will take as input the output 
+    of our initial mapper (f1) and perform an inversion mapping (swap the 
+    key and the value), then reverse the order using the natural order of 
+    the keys. Since the keys are integers, the highest numbers will appear 
+    first.</t> 
+
+    <t>So now we have two functions, f1 and f2. We could call these separately, 
+    but since the output of one becomes the output of the second, it's easier 
+    if we just go ahead and compose those into a single function...</t>
+
+    <figure><artwork><![CDATA[
+  private final static Function<
+    Iterable<Pair<Void, Activity>>, 
+    Iterable<Pair<Integer,Iterable<String>>>> f3 = 
+      Functions.compose(f2,f1);
+   ]]></artwork></figure>
+
+    <t>So now we have a function (f3) that takes as input a bunch of Activity 
+    objects and outputs a sorted listing of actor names ordered by number of 
+    occurrences. But we're still not quite done yet... note that the input of 
+    the function is an Iterable of Pair&lt;Void,Activity&gt; objects. That's kind of 
+    annoying really because what I really want to start off with is an Activity 
+    Stream. So let's create a function that converts an Activity Stream to the 
+    appropriate Iterable...</t>
+
+    <figure><artwork><![CDATA[
+  private static final Function<Collection<Activity>,Iterable<Pair<Void, Activity>>> transform = 
+    new Function<Collection<Activity>,Iterable<Pair<Void, Activity>>>() {
+      public Iterable<Pair<Void, Activity>> apply(Collection<Activity> input) {
+        return 
+          Pair.<Void,Activity>make()
+            .index(MoreFunctions.<Activity>alwaysVoid(), input.getItems());
+      }
+  };
+    ]]></artwork></figure>
+
+    <t>I've marked in bold the important bits.. basically, the Pair object has 
+    a static method called index that takes a collection of items and an 
+    Key-generating Function object (which in this case always returns void) 
+    and generates an Iterable of Pair objects for each of the Activities in 
+    the Stream.</t>
+
+    <t>Once we have our transform function, it's time to do a bit more 
+    composition...</t>
+
+    <figure><artwork><![CDATA[
+  private final static ExecutorService exec = 
+    MoreExecutors2.getExitingExecutor();
+
+  private final static Function<
+    Collection<Activity>, 
+    Future<Iterable<Pair<Integer,Iterable<String>>>>> ff = 
+    Functions.compose(
+    MoreFunctions.<
+      Iterable<Pair<Void, Activity>>, 
+      Iterable<Pair<Integer,Iterable<String>>>>futureFunction(f3,exec),
+    transform);
+    ]]></artwork></figure>
+
+    <t>Note that here, we're creating another Function that takes as input an 
+    Activity Stream Collection object and outputs a java.util.concurrent.Future 
+    whose value, when set, will be our sorted listing of actors. The new 
+    function is composed of two individual functions: our transform created 
+    above, and the combined MapReduce function (f3) that we created previously. 
+    However, first, we wrap f3 within another special Abdera2 construct called 
+    a "futureFunction", which is essentially a Guava Function object that 
+    operates asynchronously using a java.util.concurrent.ExecutorService.</t>
+
+    <t>Once all of this is defined and composed together (note that everything 
+    is stored in static, final, immutable thread-safe constants) and once we've 
+    built our Activity Stream, we can call our analysis operation using a 
+    single simple line of code (shown in bold below):</t>
+
+    <figure><artwork><![CDATA[
+  Collection<Activity> col = 
+   Collection.<Activity>makeCollection()
+       .item(getActivity("Joe",1))
+       .item(getActivity("Joe",2))
+       .item(getActivity("Mark",3))
+       .item(getActivity("Mark",4))
+       .item(getActivity("Sally",5))
+       .get();
+       
+  Iterable<Pair<Integer,Iterable<String>>> ret = ff.apply(col).get();
+    ]]></artwork></figure>
+
+    <t>The call to ff.apply(col) returns our Future object. Calling get() on 
+    that blocks until the asynchronous operation is complete. Obviously this 
+    is just an example; there are a variety of ways we can use that Future 
+    object so that blocking the current thread isn't required (the Future 
+    returned is actually a Guava ListenableFuture).</t>
+    
+    </section>
+    
+  </middle>
+  <back></back>
+</rfc>

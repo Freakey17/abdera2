@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='./rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=" "?>
+<?rfc authorship="no"?>
+<rfc docName="client" ipr="none">
+  <front>
+    <title abbrev="Building">Abdera2 - Client</title>
+    <author fullname="James M Snell" initials="J.M." surname="Snell">
+      <organization></organization>
+    </author>
+    <date month="December" year="2011" />
+    <abstract>
+      <t>TBD</t>
+    </abstract>
+  </front>
+  <middle>
+
+    <section title="Basics">
+    
+      <t>The Abdera2 Client is a generic HTTP Client interface that extends
+      the Apache HTTP Components 4.x Client and makes it easier to use and 
+      adds additional functionality. Examples of the additional functionality 
+      provided by the Abdera2 Client include automatic handling of Content-Encodings, 
+      support for complex HTTP Headers such as Web Linking, WWW-Authenticate, 
+      Cache-Control and Preference, and support for asynchronous HTTP requests 
+      utilizing Futures. </t>
+      
+      <figure><preamble>Creating and using a simple client:</preamble>
+      <artwork><![CDATA[
+  Client client = new BasicClient();
+  Session session = client.newSession();
+  ClientResponse resp = 
+    session.get("http://example.org/foo");
+
+  switch(resp.getType()) {
+    case SUCCESSFUL:
+      // Success!
+    case REDIRECTION:
+      // Redirection!
+    case CLIENT_ERROR:
+      // Handle Error!
+    case SERVER_ERROR:
+      // Handle Error!
+  }
+  
+  resp.release(); // always release resources!
+      ]]></artwork></figure>
+      
+      <t>The Session object is the primary interface through which 
+      requests are processed. In addition to GET, there are methods 
+      for each of the primary HTTP methods as well as mechanisms for
+      invoking extension HTTP methods such as PATCH.</t>
+
+    </section>
+
+    <section title="Non-blocking Requests">
+    
+      <t>New in Abdera2 is the ability to perform non-blocking HTTP
+      requests by leveraging the mechanisms provided by the
+      java.util.concurrent.* package. Developers may choose to 
+      either provide a callback Listener that will be invoked 
+      when the request completes, or receive a Future whose value
+      will be set once the response has been received.</t>
+      
+      <figure><preamble>Non-blocking requests using a Future:</preamble>
+      <artwork><![CDATA[
+  ExecutorService exec = 
+  MoreExecutors2.getExitingExecutor();
+  Future<ClientResponse> future = 
+    session.get("http://example.org/foo", exec);
+      ]]></artwork></figure>
+    
+      <figure><preamble>Non-blocking requests using a Listener:</preamble>
+      <artwork><![CDATA[
+  ExecutorService exec = MoreExecutors2.getExitingExecutor();
+  session.get(
+    "http://example.org/foo", 
+    exec,
+    new Listener<ClientResponse>() {
+      public void onResponse(ClientResponse resp) {
+        // do something with the Response
+      }});
+      ]]></artwork></figure>
+      
+      <t>Note that when using a Listener, the client will automatically 
+      handle the release of the ClientResponse object when the onResponse
+      method return.</t>
+    
+    </section>
+    
+    <section title="Customizing Request Options">
+    
+      <t>The RequestOptions class can be used to customize many details
+      of an individual request. In Abdera2, unlike previous versions of 
+      Abdera, instances of the RequestOptions
+      class are threadsafe and immutable, and are created using the same 
+      fluent factory API used throughout the rest of Abdera2.</t>
+      
+      <figure><preamble>Using RequestOptions to request a non-cached 
+      version of a resource:</preamble><artwork><![CDATA[
+  RequestOptions options = 
+    session.getDefaultRequestOptions()
+      .cacheControl(
+        CacheControl.make().noCache().get())
+      .get();
+  
+  ClientResponse resp =
+    session.get(
+      "http://example.org/foo", 
+      options);
+      ]]></artwork></figure>
+    
+      <t>The range of options supported by the RequestOptions class is 
+      extensive. Refer to the javadocs for complete details.</t>
+    
+    </section>
+    
+    <section title="Authentication">
+    
+      <t>Abdera2 leverages the Apache HTTP Component Clients support for
+      Basic and Digest authentication. To specify the authentication credentials
+      for a domain with a specific realm, call the addCredentials method on 
+      the Client object:</t>
+      
+      <figure><artwork><![CDATA[
+  Client client = new BasicClient();
+  client.addCredentials(
+    "example.org", 
+    "Test Realm",
+    "basic", 
+    "user",
+    "password");
+      ]]></artwork></figure>
+      
+      <t>Many applications choose to use Form-based authentication rather 
+      than leveraging the existing HTTP Authentication model. For those, 
+      login and logout is performed by sending particular HTTP requests 
+      to the server. Abdera2 adds basic support for simple Form 
+      authentication using the doFormLogin() method on the Session object.</t>
+      
+      <figure><artwork><![CDATA[
+  session.doFormLogin(
+    "http://example.org/login", 
+    "j_username", 
+    "user", 
+    "j_password", 
+    "password");
+      ]]></artwork></figure>
+      
+      <t>The doFormLogin method will return true if the response returns a
+      successful status code (e.g. 2xx). If custom behavior, additional
+      form fields, or specific response handling is required, then the 
+      login request will need to be handled like any other HTTP request 
+      using the appropriate methods on the session object.</t>
+      
+      <t>Abdera2 also supports the use of custom authentication schemes 
+      leveraging the extensibility of the WWW-Authenticate and 
+      Authorization headers. Custom Authorization header values may be 
+      set using the RequestOptions class:</t>
+      
+      <figure><artwork><![CDATA[
+  RequestOptions options = 
+    session.getDefaultRequestOptions()
+      .setAuthorization(
+        Authentication.make()
+          .scheme("foo")
+          .param("realm", "My Realm")
+          .param("bar", "123")
+          .get())
+      .get();
+      ]]></artwork></figure>
+    
+    </section>
+    
+    <section title="Conditional Requests">
+    
+      <t>The Abdera2 Client fully supports conditional HTTP Requests using
+      EntityTags. Conditional request options can be set using the 
+      RequestOptions class:</t>
+      
+      <figure><preamble>An example conditional request using If-None-Match:</preamble>
+      <artwork><![CDATA[
+  RequestOptions options =
+    RequestOptions.make()
+      .ifNoneMatch(
+        EntityTag.create("FooBarBaz"))
+      .get();
+      ]]></artwork></figure>
+      
+      <figiure><preamble>A conditional request using If-Modified-Since:</preamble>
+      <artwork><![CDATA[
+  RequestOptions options =
+    RequestOptions.make()
+      .ifModifiedSince(DateTimes.now().minusSeconds(10))
+      .get();
+      ]]></artwork></figiure>
+    
+    </section>
+
+    <section title="Preferences">
+    
+    <t>The HTTP Prefer Header is a proposed new HTTP header that may be
+    used to request that a server apply optional processing behaviors to
+    a request.</t>
+    
+    <figure><preamble>Adding Preferences to a request:</preamble>
+    <artwork><![CDATA[
+  RequestOptions options =
+    RequestOptions.make()
+      .prefer(Preference.PREF_LENIENT)
+      .prefer(Preference.PREF_RETURN_MINIMAL)
+      .get();
+    ]]></artwork></figure>
+    
+    </section>
+
+  </middle>
+  <back></back>
+</rfc>

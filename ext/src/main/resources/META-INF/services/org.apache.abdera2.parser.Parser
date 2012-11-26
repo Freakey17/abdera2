@@ -1,0 +1,2 @@
+org.apache.abdera2.ext.html.HtmlParser
+org.apache.abdera2.ext.activities.ActivityToFeedParser

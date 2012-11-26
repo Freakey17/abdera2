@@ -1,0 +1,857 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='./rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=" "?>
+<?rfc authorship="no"?>
+<rfc docName="atom" ipr="none">
+  <front>
+    <title abbrev="Atom">Abdera2 - Atom</title>
+    <author fullname="James M Snell" initials="J.M." surname="Snell">
+      <organization></organization>
+    </author>
+    <date month="December" year="2011" />
+    <abstract>
+      <t>TBD</t>
+    </abstract>
+  </front>
+  <middle>
+
+  <section title="Overview">
+
+    <t>The Abdera2 Atom Syndication Format and Atom Publishing Protocol
+    support has been carried over from Abdera 1.x and remains largely 
+    unchanged with the exception of a handful of important items:</t>
+    
+    <t><list>
+    <t>The Joda-Time library is now used for all DateTime operations, and 
+    all instances of the old Abdera 
+    <eref target="http://abdera.apache.org/docs/api/org/apache/abdera/model/AtomDate.html">AtomDate</eref>
+    class have been replaced with Joda-Time
+    <eref target="http://joda-time.sourceforge.net/apidocs/org/joda/time/DateTime.html">DateTime</eref>
+    objects.</t>
+    <t>Additional methods utilizing the Abdera2 Selector Framework have been 
+    added. For instance, the Feed object now supports a getItems() method that
+    takes a Selector as an argument, allowing developers to filter the set of
+    items returned. The implementation of the filtering logic maintains the 
+    incremental parsing model used by Abdera2.</t>
+    <t>The code and package layout has been refactored to improve overall 
+    organization and maintainability.</t>
+    <t>The Atom Client API has been completely redesigned around the 
+    Apache HTTP Components Client 4.x API and now supports asynchronous 
+    operations.</t>
+    <t>The Atom Publishing Protocol Server framework has been completely 
+    refactored to be more efficient and to integrate with the
+    <eref target="http://code.google.com/p/guava-libraries/">Guava Library</eref>
+    and the new Selector Framework. Existing Custom Providers based on the 
+    original BasicProvider and ManagedProvider should require few changes to
+    work with Abdera2, but other custom providers will need to be ported to 
+    the new architecture.</t>
+    <t>Performance improvements have been made throughout, particularly to the
+    parsing logic. Informal tests have demonstrated a 20-25% performance improvement
+    in parsing of most average Atom docucments.</t>
+    <t>All of the dependencies have been updated to their latest versions.</t>
+    </list></t>
+      
+  </section>
+  
+  <section title="Creating and Consuming Atom Documents">
+  
+    <t>The two most common uses for Abdera are creating and parsing Atom 
+    documents. At a minimum, you will need the Abdera2-Common and Abdera2-Core
+    modules, along with their various dependencies, to perform the following
+    examples.</t>
+    
+    <figure><preamble>Parsing an Atom Document and printing entry titles:</preamble>
+    <artwork<![CDATA[
+  Abdera abdera = Abdera.getInstance();
+  Parser parser = abdera.getParser();
+          
+  URL url = new URL("http://intertwingly.net/blog/index.atom");
+  Document<Feed> doc = parser.parse(url.openStream(),url.toString());
+  Feed feed = doc.getRoot();
+  System.out.println(feed.getTitle());
+  for (Entry entry : feed.getEntries())
+    System.out.println("\t" + entry.getTitle());
+    ]]></figure>
+    
+    <t>Note that for this simple task, the code is generally identical to
+    that of Abdera 1.x with the exception of the first line. In Abdera2, 
+    the default constructor for the Abdera object has been hidden. To 
+    acquire an instance of the Abdera object, you must now call the static
+    getInstance() method.</t>
+    
+    <figure><preamble>Creating an Atom Document and adding an entry:</preamble>
+    <artwork><![CDATA[
+  Abdera abdera = Abdera.getInstance();
+  Feed feed = abdera.newFeed();
+
+  feed.setId("tag:example.org,2007:/foo");
+  feed.setTitle("Test Feed");
+  feed.setSubtitle("Feed subtitle");
+  feed.setUpdatedNow();
+  feed.addAuthor("James Snell");
+  feed.addLink("http://example.com");
+  feed.addLink("http://example.com/foo","self");
+
+  Entry entry = feed.addEntry();
+  entry.setId("tag:example.org,2007:/foo/entries/1");
+  entry.setTitle("Entry title");
+  entry.setSummaryAsHtml("<p>This is the entry title</p>");
+  entry.setUpdatedNow();
+  entry.setPublishedNow();
+  entry.addLink("http://example.com/foo/entries/1");
+    ]]></artwork></figure>
+    
+  </section>
+    
+  <section title="The Feed Object Model">
+  
+  <t>The Feed Object Model (FOM) is the set of objects you will use to 
+  interact with Atom Documents. It contains classes such as "Feed", "Entry",
+  "Person", etc, all of which are modeled closely after the various elements
+  and documents defined by the two Atom specifications. Refer to the Javadocs
+  for the Feed Object Model for specific details on each class.</t>
+  
+  <section title="Extensions">
+  
+    <t>Extensions to the Atom format within Abdera can either be dynamic 
+    or static. A dynamic extensions use a generic API for setting and 
+    getting elements and attributes of the extension.</t>
+    
+    <figure><preamble>For instance, suppose we have an extension element
+    called "mylist" within an Atom entry:</preamble>
+    <artwork><![CDATA[
+  <entry xmlns="http://www.w3.org/2005/Atom">
+    <mylist xmlns="http://example.org" name="listName">
+      <value>one</value>
+      <value>two</value>
+    </mylist>
+    ...
+  </entry>
+    ]]></artwork></figure>
+  
+    <figure><preamble>We can add this element to an existing Atom Entry element using the 
+    dynamic extension API:</preamble>
+    <artwork><![CDATA[
+  Entry entry = ...
+  ExtensibleElement e = entry.addExtension(MYLIST_QNAME);
+  e.setAttributeValue("name", "listName");
+  e.addSimpleExtension(VALUE_QNAME,"one");
+  e.addSimpleExtension(VALUE_QNAME,"two");
+    ]]></artwork></figure>
+  
+    <figure><preamble>Or you can implement a static extension by implementing 
+    a class that extends the ExtensibleElementWrapper class, implementing an 
+    ExtensionFactory for it and registering the ExtensionFactory with Abdera:</preamble>
+    <artwork><![CDATA[
+  public class MyListElement
+    extends ExtensibleElementWrapper {
+    private static final javax.xml.namespace.QName VALUE = 
+      new javax.xml.namespace.QName("http://example.org","value");
+    public MyListElement(Element internal) {
+      super(internal);
+    }
+    public MyListElement(
+      Factory factory, 
+      javax.xml.namespace.QName qname) {
+      super(factory, qname);
+    }
+    public void setName(String name) {
+      setAttributeValue("listName",name);
+    }
+    public void addValue(String value) {
+      addSimpleExtension(VALUE, value);
+    }
+  }
+    ]]></artwork></figure>
+    
+    <figure><preamble>foo/MyListExtensionFactory.java:</preamble>
+    <artwork><![CDATA[
+  @Namespace("http://example.org")
+  @Impls({@Impl(MyListElement.class)})
+  public class FooExtensionFactory 
+    extends AbstractExtensionFactory {}
+    ]]></artwork></figure>
+    
+    <figure><preamble>META-INF/services/org.apache.abdera2.factory.ExtensionFactory</preamble>
+    <artwork>
+foo.MyListExtensionFactory
+    </artwork></figure>
+  
+    <figure><preamble>Abdera will automatically locate the ExtensionFactory using
+    the configuration file in the META-INF services path, making it simple to
+    use the static extension:</preamble>
+    <artwork><![CDATA[
+  Entry entry = ...
+  QName qname = new QName("http://example.org","mylist");
+  MyListElement list = entry.addExtension(qname);
+  list.setName("listName");
+  list.addValue("one");
+  list.addValue("two");
+    ]]></artwork></figure>
+  
+  </section>
+  
+  <section title="Customizing the Parser">
+  
+    <t>When parsing an Atom document, the parser uses a set of default 
+    configuration options that will adequately cover most application use 
+    cases. There are, however, times when the parsing options need to be 
+    adjusted. The ParserOptions class can be used to tweak the operation of 
+    the parser in a number of important ways.</t>
+    
+    <figure><artwork><![CDATA[
+  Abdera abdera = Abdera.getInstance();
+  Parser parser = abdera.getParser();
+  ParserOptions options = 
+    parser.makeDefaultParserOptions()
+      .autodetectCharset()
+      .charset("UTF-8")
+      .compression(CompressionCodec.GZIP)
+      .filterRestrictedCharacterReplacement('_')
+      .filterRestrictedCharacters()
+      .preserveWhitespace()
+      .filter(null)
+      .resolveEntities()
+      .entity("foo", "bar")
+      .get();
+      
+  InputStream in = ...;
+  String base = "http://example.org";
+      
+  parser.parse(in,base,options);
+    ]]></artwork></figure>
+  
+  <t><list style="hanging">
+    <t hangText="setAutodetectCharset">Abdera will, by default, attempt to 
+    automatically detect the character set used in an XML document. It will 
+    do so by looking at the XML prolog, the Byte Order Mark, or the first 
+    few bytes of the document. The process works reasonably well for the 
+    overwhelming majority of cases but it does cause of bit of performance 
+    hit. The autodetection algorithm can be disabled by calling 
+    options.setAutodetectCharset(false). This only has an effect when 
+    parsing an InputStream.</t>
+    <t hangText="setCharset">This option allows you to manually set the 
+    character set the parser should use when decoding an InputStream.</t>
+    <t hangText="setCompressionCodecs">Abdera is capable of parsing 
+    InputStream's that have been compressed using the GZIP or Deflate 
+    algorithms (typically used as HTTP transfer encodings). 
+    setCompressionCodecs can be used to specify which encodings have 
+    been applied.</t>
+    <t hangText="setFilterRestrictedCharacters">By default, Abdera will throw 
+    a parse exception if any characters not allowed in XML are detected. By 
+    setting setFilterRestrictedCharacters(true), the parser will automatically 
+    filter out invalid XML characters.</t>
+    <t hangText="setFilterRestrictedCharacterReplacement">When 
+    setFilterRestrictedCharacters has been set to "true", Abdera will, by 
+    default, replace the character with an empty string. Alternatively, you 
+    can use setFilterRestrictedCharacterReplacement to specify a replacement 
+    character.</t>
+    <t hangText="setParseFilter">See below</t>
+    <t hangText="setResolveEntities">There are a number of named character 
+    entities allowed by HTML and XHTML that are not supported in XML without 
+    a DTD. However, it is not uncommon to find these entities being used 
+    without a DTD. Abdera will, by default, automatically handle these entities 
+    by replacing them with the appropriate character equivalent. To disable 
+    automatic entity resolution call setResolveEntities(false). Doing so will 
+    cause Abdera to return an error whenever a named character entity is used.</t>
+    <t hangText="registerEntity">When setResolveEntities is true, 
+    registerEntity can be used to register a new custom named entity reference.</t>
+  </list></t>
+  
+  <section title="Parse Filters">
+  
+  <t>A ParseFilter is used to filter the stream of parse events. In the example 
+  below, only the elements added to the ParseFilter will be parsed and added to 
+  the Feed Object Model instance. All other elements will be silently ignored. 
+  The resulting savings in CPU and memory costs is significant.</t>
+  
+  <figure><preamble>Using a ParseFilter:</preamble>
+  <artwork><![CDATA[
+  ParseOptions options = 
+    parse.makeDefaultParserOptions()
+      .filter( 
+        WhiteListParseFilter.make()
+          .add(Constants.FEED)
+          .add(Constants.ENTRY)
+          .add(Constants.TITLE)
+          .get())
+      .get();
+  Document<Feed> doc = parser.parse(in,base,options);
+  ]]></artwork></figure>
+  
+  <t>There are three basic types of ParseFilters:</t>
+  
+  <t><list style="hanging">
+    <t hangText="WhiteListParseFilter">Only elements and attributes listed in the filter will be parsed.</t>
+    <t hangText="BlackListParseFilter">Elements and attributes listed in the filter will be ignored</t>
+    <t hangText="CompoundParseFilter">Allows multiple parse filters to be applied</t>
+  </list></t>
+  
+  <t>Developers can also create their own ParseFilter instances by implementing 
+  the ParseFilter, or extending the AbstractParseFilter or AbstractSetParseFilter 
+  abstract base classes:</t>
+  
+  <figure><preamble>MyCustomParseFilter.java</preamble>
+  <artwork><![CDATA[
+  public class MyParseFilter extends AbstractParseFilter() {
+  
+    public boolean acceptable(QName qname) {
+      return false;
+    }
+  
+    public boolean acceptable(QName qname, QName attribute) {
+      return false;
+    }
+  }
+  ]]></artwork></figure>
+  
+  <figure><preamble>Using a CompoundParseFilter, a developer can apply multiple
+  ParseFilters at once:</preamble>
+  <artwork><![CDATA[
+  ParseFilter cpf = 
+    CompoundParseFilter
+      .makeAcceptableToAll()
+      .filter(filter)
+      .get();
+  ]]></artwork></figure>
+  
+  <t>There are four forms of CompoundParseFilter that can be created using 
+  static methods on the CompoundParseFilter class:</t>
+  
+  <t><list style="hanging">
+    <t hangText="CompoundParseFilter.makeAcceptableToAll()">Accepts the element or attribute 
+    only if it is acceptable to all contained ParseFilters</t>
+    <t hangText="CompoundParseFilter.makeAcceptableToAny()">Accepts the element or attribute 
+    if it is acceptable to any of the contained ParseFilters</t>
+    <t hangText="CompoundParseFilter.makeUnacceptableToAll()">Accepts the element or 
+    attribute only if it is unacceptable to all contained ParseFilters</t>
+    <t hangText="CompoundParseFilter.makeUnacceptableToAny()">Accepts the element or 
+    attribute if it is unacceptable to any of the contained ParseFilters</t>
+  </list></t>
+  
+  <t>Note that the unacceptableTo* variants will accept an element or attribute 
+  based on a negative result. This is particularly useful when building 
+  blacklist-based filters, where an item is only acceptable if it does not 
+  meet an explicitly stated condition.</t>
+  
+  </section>
+    
+  </section>
+  
+  <section title="Serializing Atom Documents">
+  
+    <t>Abdera uses a flexible mechanism for serializing Atom documents to a 
+    Java InputStream or Writer. A developer can use the default serializer or 
+    select an alternative Abdera writer implementation to use.</t>
+    
+    <figure><preamble>Using the default serializer:</preamble>
+    <artwork><![CDATA[
+  Entry entry = ...
+  entry.writeTo(System.out);
+    ]]></artwork></figure>
+  
+    <t>The default serializer will output valid, but unformatted XML; there 
+    will be no line-breaks or indents. Using the "Named Writer" mechanism, it 
+    is possible to select alternative serializers. Abdera ships with three 
+    alternative serialiers: PrettyXML, Activity Streams and JSON. Developers 
+    can implement additional serializers by implementing the Writer interface.</t>
+    
+    <t>Note: In Abdera2, the NamedWriter interface used in Abdera 1.x has been
+    removed. Named Writers are now implemented using the base Writer interface
+    with a org.apache.abdera2.common.anno.Name Attribute.</t>
+    
+    <figure><preamble>The PrettyXML Writer will output formatted XML containing
+    linebreaks and indents:</preamble><artwork><![CDATA[
+  Writer writer = 
+    abdera.getWriterFactory().getWriter("prettyxml");
+  entry.writeTo(writer,System.out);
+    ]]></artwork></figure>
+  
+    <figure><preamble>The Activity Streams Writer will output the
+    Atom Document using the JSON Activity Streams format:</preamble>
+    <artwork><![CDATA[
+  Writer writer = abdera.getWriterFactory().getWriter("activity");
+  entry.writeTo(writer,System.out);
+    ]]></artwork></figure>  
+  </section>
+  
+  <section title="Using the StreamWriter interface">
+  
+   <t>The org.apache.abdera.writer.StreamWriter interface was added to Abdera 
+   after the release of 0.3.0. It provides an alternative means of writing out 
+   Atom documents using a streaming interface that avoids the need to build up 
+   a complex, in-memory object model. It is well suited for applications that 
+   need to quickly produce potentially large Atom documents.</t>
+   
+   <figure><artwork><![CDATA[
+  Abdera abdera = Abdera.getInstance();
+  StreamWriter out = 
+    abdera.create(StreamWriter.class)
+      .setOutputStream(System.out,"UTF-8")
+      .setAutoflush(false)
+      .setAutoIndent(true)
+      .startDocument()
+        .startFeed()
+          .writeBase("http://example.org")
+          .writeLanguage("en-US")
+          .writeId("http://example.org")
+          .writeTitle("<Testing 123>")
+          .writeSubtitle("Foo")
+          .writeAuthor("James", null, null)
+          .writeUpdatedNow()
+          .writeLink("http://example.org/foo")
+          .writeLink("http://example.org/bar","self")
+          .writeCategory("foo")
+          .writeCategory("bar")
+          .writeLogo("logo")
+          .writeIcon("icon")
+          .writeGenerator("1.0", "http://example.org", "foo")
+          .flush();
+        
+  for (int n = 0; n < 100; n++) {
+    out.startEntry()      
+      .writeId("http://example.org/" + n)
+      .writeTitle("Entry #" + n)
+      .writeUpdatedNow()
+      .writePublishedNow()
+      .writeEditedNow()
+      .writeSummary("This is text summary")
+      .writeAuthor("James", null, null)
+      .writeContributor("Joe", null, null)
+      .startContent("application/xml")
+        .startElement(new QName("a","b","c"))
+          .startElement(new QName("x","y","z"))
+            .writeElementText("This is a test")
+            .startElement("a")
+              .writeElementText("foo")
+            .endElement()
+            .startElement("b","bar")
+              .writeAttribute("foo", DateTimes.now())
+              .writeAttribute("bar", 123L)
+              .writeElementText(123.123)
+            .endElement()
+          .endElement()
+        .endElement()
+      .endContent()
+    .endEntry()
+    .flush();
+  }
+        
+  out.endFeed()
+    .endDocument()
+    .flush();
+   ]]></artwork></figure>
+  
+  </section>
+  
+  <section title="Text and Content Options">
+  
+    <t>Atom allows for a broad range of text and content options. The choices 
+    can often times be confusing. Text constructs such as atom:title, atom:rights, 
+    atom:subtitle and atom:summary can contain plain text, escaped HTML or XHTML 
+    markup. The atom:content element can contain plain text, escaped HTML, XHTML 
+    markup, arbitrary XML markup, any arbitrary text-based format, Base64-encoded 
+    binary data or referenced external content. Abdera provides methods for 
+    dealing with these options.</t>
+  
+    <figure><preamble>Text Content Options:</preamble>
+    <artwork><![CDATA[
+  entry.setTitle("A text title");
+      
+  entry.setTitleAsHtml("<p>An HTML title</p>");
+      
+  entry.setTitleAsXhtml("<p>An XHTML title</p>");
+    ]]></artwork></figure>
+    
+    <figure><preamble>Resulting atom:title elements:</preamble>
+    <artwork><![CDATA[
+  <title>A text title</title>
+  
+  <title type="html">&lt;p&gt;An HTML title&lt;/p&gt;</title>
+  
+  <title type="xhtml">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <p>An XHTML title</p>
+    </div>
+  </title>
+    ]]></artwork></figure>
+  
+    <figure><preamble>Getting the text value:</preamble>
+    <artwork><![CDATA[
+  String title = entry.getTitle();
+  Text.Type titleType = entry.getTitleType();
+    ]]></artwork></figure>
+   
+    <figure><preamble>Content options:</preamble>
+    <artwork><![CDATA[
+  // Plain text
+  entry.setContent("A text title");
+      
+  // Escaped HTML
+  entry.setContentAsHtml("<p>An HTML title</p>");
+      
+  // XHTML markup
+  entry.setContentAsXhtml("<p>An XHTML title</p>");
+  
+  // Arbitrary XML (parsed)    
+  entry.setContent("<a><b><c/></b></a>",Content.Type.XML);
+      
+  // Arbitrary XML
+  QName qname = new QName("foo");
+  Element element = abdera.getFactory().newElement(qname);
+  entry.setContent(element);
+      
+  // Base64-encoded binary from an inputstream
+  InputStream in = ...;
+  entry.setContent(in,"image/png");
+  
+  // Base64-encoded from a Java Activation Framework DataHandler
+  DataHandler dh = ...;
+  entry.setContent(dh,"image/png");
+      
+  // Content-by-reference using atom:content/@src
+  IRI iri = new IRI("http://example.org");
+  entry.setContent(iri,"image/png");
+    ]]></artwork></figure>
+   
+    <figure><preamble>The resulting atom:content elements:</preamble>
+    <artwork><![CDATA[
+  <content>A text title</content>
+  
+  <content type="html">&lt;p&gt;An HTML title&lt;/p&gt;</content>
+  
+  <content type="xhtml">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <p>An XHTML title</p>
+    </div>
+  </content>
+  
+  <content type="application/xml"><a><b><c/></b></a></content>
+  
+  <content type="application/xml"><foo /></content>
+  
+  <content type="image/png">{base64}</content>
+  
+  <content type="image/png">{base64}</content>
+  
+  <content type="image/png" src="http://example.org" />
+    ]]></artwork></figure>
+   
+  </section>
+  
+  <section title="Date Constructs">
+  
+   <t>The Atom format requires that all dates and times be formatted to match 
+   the date-time construct from RFC 3339. The basic format is 
+   YYYY-MM-DD'T'HH:mm:ss.ms'Z' where 'Z' is either the literal value 'Z' or 
+   a timezone offset in the form +-HH:mm. Examples: 2007-10-31T12:11:12.123Z 
+   and 2007-10-31T12:11:12.123-08:00. Abdera2 uses the Joda-Time library for 
+   working with timestamps and provides a number of useful utility methods in 
+   the org.apache.abdera2.common.date.DateTimes class for working with dates.</t>
+   
+   <figure><artwork>
+  // The current date and time in the default timezone
+  org.joda.time.DateTime dt = DateTimes.now();
+  
+  // Setting the value of the updated element on an entry
+  entry.setUpdated(dt);
+  
+  // alternatively, if setting to the current time,
+  // you can use the shortcut setUpdatedNow() method
+  entry.setUpdatedNow();
+   </artwork></figure>
+   
+   <t>The Joda-Time DateTime class provides a host of additional benefits and 
+   features relative to the old Abdera 1.x AtomDate class, including Date
+   Arithmetic operations.</t>
+   
+   <figure><preamble>For instance, to indicate that an entry was updated 
+   five minutes prior to the current date and time, you can use the following:</preamble>
+   <artwork>
+  entry.setUpdated(DateTimes.now().minusMinutes(5));
+   </artwork></figure>
+  
+   <t>The DateTime class has also been integrated with the Abdera2 Selector 
+   Framework and Guava Libraries Predicate API to enable powerful filtering 
+   options.</t>
+   
+   <figure><preamble>For instance, if you have an Atom feed and want to retrieve
+   a listing of only the Entry objects whose updated timestamps fall within a 
+   given range, you can call:</preamble><artwork><![CDATA[
+  import static org.apache.abdera2.model.selector.Selectors.updated;
+  import static org.apache.abdera2.common.date.DateTimes.between;
+   
+  Feed feed = ...
+  DateTime date1 = ...
+  DateTime date2 = ...
+    
+  feed.getEntries(
+    updated(
+      between(
+        date1,date2)));
+    
+   ]]></artwork></figure>
+  
+   <section title="Date Construct Extensions">
+   
+   <t>The Atom format explicitly allows the Atom Date Construct to be reused 
+   by extensions. This means you can create your own extension elements that 
+   use the same syntax rules as the atom:updated, atom:published and 
+   app:edited elements. Such extensions can use the dynamic and static 
+   extension APIs:</t>
+   
+   <figure><preamble>Adding a Date Construct Extension using the dynamic API:</preamble>
+   <artwork><![CDATA[
+  Entry entry = ...
+  QName qname = new QName("foo");  
+  entry.addDateExtension(qname, DateTimes.now());
+   ]]></artwork></figure>
+   
+   <t>Note that the addDateExtension on the Abdera Entry class is new in Abdera2.</t>
+   
+   <figure><preamble>More complex extensions of the Date Construct can be implemented
+   statically by extending the DateTimeWrapper abstract class:</preamble>
+   <artwork><![CDATA[
+  import javax.xml.namespace.QName;
+
+  import org.apache.abdera2.factory.Factory;
+  import org.apache.abdera2.model.DateTimeWrapper;
+  import org.apache.abdera2.model.Element;
+
+  public class MyDateElement 
+    extends DateTimeWrapper {
+
+    public MyDateElement(Element internal) {
+      super(internal);
+    }
+
+    public MyDateElement(Factory factory, QName qname) {
+      super(factory, qname);
+    }
+  
+    ...
+  }
+   ]]></artwork></figure>
+   
+   </section>
+  
+  </section>
+  
+  <section title="Person Constructs">
+  
+    <t>Atom defines the notion of a Person Construct to represent people 
+    and entities. A Person Construct consists minimally of a name, an 
+    optional email address and an optional URI.</t>
+    
+    <figure><artwork><![CDATA[
+  Person person = entry.addAuthor(
+    "John Doe", 
+    "john.doe@example.org", 
+    "http://example.org/~jdoe");
+
+  System.out.println(person.getName());
+  System.out.println(person.getEmail());
+  System.out.println(person.getUri());
+    ]]></artwork></figure>
+  
+    <section title="Person Construct Extensions">
+    
+    <t>The Atom format explicitly allows the Atom Person Construct to be 
+    reused by extensions. This means you can create your own extension elements 
+    that use the same syntax rules as the atom:author and atom:contributor 
+    elements. Such extensions can use the dynamic and static extension APIs:</t>
+    
+    <figure><artwork><![CDATA[
+  Entry entry = ...
+  QName qname = new QName("urn:foo","foo","x");
+  Person person = abdera.getFactory().newPerson(qname, entry);
+  person.setName("John Doe");
+  person.setEmail("john.doe@example.org");
+  person.setUri("http://example.org/~jdoe");
+    ]]></artwork></figure>
+    
+    <figure><preamble>The resulting extension element:</preamble>
+    <artwork><![CDATA[
+  <x:foo xmlns:x="urn:foo">
+    <name>John Doe</name>
+    <email>john.doe@example.org</email>
+    <uri>http://example.org/~jdoe</uri>
+  </x:foo>
+    ]]></artwork></figure>
+  
+      <t>Static Person Construct extensions can be implemented by extending
+      the org.apache.abdera2.model.PersonWrapper abstract class.</t>
+    
+    </section>
+  
+  </section>
+  
+  <section title="Atom Links">
+  
+  <t>Atom link elements are similar in design to the link tag used in HTML 
+  and XHTML. They can be added to feed, entry and source objects.</t>
+  
+  <figure><preamble>Adding a link to an Atom Entry:</preamble>
+  <artwork><![CDATA[
+  entry.addLink(
+    "http://example.org/foo",  // href
+    Link.REL_ALTERNATE,        // rel
+    "text/html",               // type
+    "Link Title",              // title
+    "en-US",                   // hreflang
+    12345);                    // length
+  ]]></artwork></figure>
+  
+  <t>The rel attribute specifies the meaning of the link. The value of rel can 
+  either be a simple name or an IRI. Simple names MUST be registered with 
+  <eref="http://www.iana.org/assignments/link-relations/link-relations.xml">IANA</eref>. 
+  Note that each of the values in the IANA registry have a full IRI 
+  equivalent value, e.g., the value "http://www.iana.org/assignments/relation/alternate" 
+  is equivalent to the simple name "alternate". Any rel attribute value that 
+  is not registered MUST be an IRI.</t>
+  
+  <figure><artwork><![CDATA[
+  entry.addLink(
+    "http://example.org/foo",  // href
+    "http://example.com/custom/link/rel"); // rel
+  ]]></artwork></figure>
+  
+  </section>
+  
+  <section title="Signatures and Encryption">
+  
+  <t>Abdera supports digital signatures and encryption of Atom documents.</t>
+  
+  <section title="Signing an Atom Document">
+  
+    <figure><preamble>Initialize the Signing Key:</preamble>
+    <artwork><![CDATA[
+  KeyStore ks = KeyStore.getInstance(keystoreType);
+  InputStream in = DSig.class.getResourceAsStream(keystoreFile);    
+  ks.load(in, keystorePass.toCharArray());
+  PrivateKey signingKey = 
+    (PrivateKey) ks.getKey(
+      privateKeyAlias,
+      privateKeyPass.toCharArray());
+  X509Certificate cert = 
+    (X509Certificate) ks.getCertificate(
+      certificateAlias);
+    ]]></artwork></figure>
+    
+    <figure><preamble>Prepare the entry to sign:</preamble>
+    <artwork><![CDATA[
+  Entry entry = abdera.newEntry();
+      
+  entry.setId("http://example.org/foo/entry");  
+  entry.setUpdatedNow();
+  entry.setTitle("This is an entry");
+  entry.setContentAsXhtml("This <b>is</b> <i>markup</i>");
+  entry.addAuthor("James");
+  entry.addLink("http://www.example.org");
+    ]]></artwork></figure>
+    
+    <figure><preamble>Prepare the signing options:</preamble>
+    <artwork><![CDATA[
+  Security absec = new Security(abdera);
+    SignatureOptions options = 
+      absec.getSignature()
+        .getDefaultSignatureOptions()
+        .signingKey(signingKey)
+        .certificate(cert)
+        .get();  
+    ]]></artwork></figure>
+    
+    <figure><preamble>Sign the entry:</preamble>
+    <artwork><![CDATA[
+  entry = (Entry)security.signer(options).apply(entry);
+    ]]></artwork></figure>
+  
+    <figure><preamble>Verifying the signed entry:</preamble>
+    <artwork><![CDATA[
+  boolean verified = security.verifier().apply(entry);
+  System.out.println(verified);
+    ]]></artwork></figure>
+
+    <t>Note that the signer() and verifier() methods on the 
+    org.apache.abdera2.security.Security class are new within Abdera2 and 
+    return Guava Function objects that wrap the signing and verification
+    logic.</t>
+  
+  </section>
+  
+  <section title="Encrypting an Atom Document">
+  
+   <t>Any valid Java crypto provider can be used. In these examples, we are 
+   using the <eref target="http://www.bouncycastle.org/">Bouncy Castle</eref> provider.</t>
+   
+   <figure><preamble>Prepare the provider and the encryption key:</preamble>
+   <artwork><![CDATA[
+  KeyHelper.prepareDefaultJceProvider();
+  
+  String jceAlgorithmName = "AES";
+  KeyGenerator keyGenerator =
+      KeyGenerator.getInstance(jceAlgorithmName);
+  keyGenerator.init(128);
+  SecretKey key = keyGenerator.generateKey();
+   ]]></artwork></figure>
+   
+   <figure><preamble>Prepare the entry to encrypt:</preamble>
+   <artwork><![CDATA[
+  Entry entry = abdera.newEntry();
+  entry.setId("http://example.org/foo/entry");
+  entry.setUpdatedNow();
+  entry.setTitle("This is an entry");
+  entry.setContentAsXhtml("This <b>is</b> <i>markup</i>");
+  entry.addAuthor("James");
+  entry.addLink("http://www.example.org");
+   ]]></artwork></figure>
+   
+   <figure><preamble>Prepare the encryption options:</preamble>
+   <artwork><![CDATA[
+  Security absec = new Security(abdera);
+  EncryptionOptions options =
+   absec.getEncryption()
+     .getDefaultEncryptionOptions()
+     .dataEncryptionKey(key)
+     .get();
+   ]]></artwork></figure>
+   
+   <figure><preamble>Encrypt the document:</preamble>
+   <artwork<![CDATA[
+  Document<Element> enc = 
+    absec.encryptor(options)
+      .apply(entry.getDocument());
+   ]]></figure>
+  
+   <figure><preamble>Decrypting the document:</preamble>
+   <artwork><![CDATA[
+  Document<Element> ent = 
+    absec.decryptor(options)
+      .apply(enc);
+   ]]></artwork></figure>
+   
+   <t>Note that the encryptor() and decryptor() methods on the 
+   org.apache.abdera2.security.Security class are new in Abdera2
+   are return Guava Function objects that wrap the encryption and
+   decryption logic.</t>
+  
+  </section>
+  
+  </section>
+  
+  </section>
+    
+  </middle>
+  <back></back>
+</rfc>

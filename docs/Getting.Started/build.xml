@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<?xml-stylesheet type='text/xsl' href='./rfc2629.xslt' ?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<?rfc toc="yes"?>
+<?rfc tocompact="yes"?>
+<?rfc tocdepth="3"?>
+<?rfc tocindent="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc private=" "?>
+<?rfc authorship="no"?>
+<rfc docName="source-installing" ipr="none">
+  <front>
+    <title abbrev="Building">Abdera2 - Source and Installation</title>
+    <author fullname="James M Snell" initials="J.M." surname="Snell">
+      <organization></organization>
+    </author>
+    <date month="December" year="2011" />
+    <abstract>
+      <t>TBD</t>
+    </abstract>
+  </front>
+  <middle>
+
+  <section title="Source Code">
+  
+    <t>Source code for the Apache Abdera2 Project is currently managed 
+    through Subversion (SVN).</t>
+
+    <section title="Web Access">
+    <t>If you just want to browse the source code, you can use 
+    the <eref target="http://svn.apache.org/repos/asf/abdera/abdera2/">web interface</eref> 
+    to Subversion.</t>
+    </section>
+    
+    <section title="Normal Subversion Access">
+    <t>Anyone can check code out of Subversion. You only need to specify a 
+    username and password in order to update the Subversion repository but 
+    only Abdera committers have the permissions to do that.</t>
+    <t>You can use the command line in order to check out the current 
+    version of Abdera2 code:</t>
+    <figure><artwork>
+svn checkout http://svn.apache.org/repos/asf/abdera/abdera2/
+    </artwork></figure>
+    </section>
+    
+    <section title="Commit Changes to Subversion">
+   
+    <t>Any Abdera committer should have access to the abdera repository at 
+    svn.apache.org. If not please write a mail to dev@abdera.apache.org.</t>
+
+    <t>Please make sure that you used a secure connection for checkout 
+    (or use relocate):</t>
+    
+    <figure><artwork>
+svn checkout https://svn.apache.org/repos/asf/abdera/abdera2/
+    </artwork></figure>
+    
+    <t>Committing changes:</t>
+
+    <figure><artwork>
+svn commit
+    </artwork></figure>
+
+    <t>If Subversion can't figure out your username, you can tell it 
+    explicitly:</t>
+
+    <figure><artwork>
+svn --username you commit
+    </artwork></figure>
+    
+    <t>Subversion will prompt you for a password, and once you enter it 
+    once, it will remember it for you.</t>
+
+    </section>
+  
+  </section>
+  
+  <section title="Building with Maven">
+  
+    <t>Abdera2 uses <eref target="http://maven.apache.org/">Maven</eref> for 
+    building and dependency management. Simply navigate to the root of the 
+    Abdera2 project and run:</t>
+    
+    <figure><artwork>
+mvn install
+    </artwork></figure>
+  
+    <t>To build the distribution, include the deploy profile:</t>
+    
+    <figure><artwork>
+mvn install -Pdeploy
+    </artwork></figure>
+    
+    <t>The built artfacts for the project will be installed to your local
+    Maven Repository.</t>
+  
+  </section>
+
+  <section title="The Classpath">
+    
+    <t>The Abdera2 build generates a handful of individual jar files, each
+    of which can be used in various combinations depending on the specific
+    requirements of your application. These modules include:</t>
+    
+    <t><list style="hanging">
+      <t hangText="Common (abdera2-common-2.0-SNAPSHOT.jar):">
+        Contains the Abdera2 Common Code Library, a generic collection
+        of utilities supporting a broad range of functionality including
+        URI Templates, Date/Time handling, extended HTTP Header support,
+        IRI and Language Tags, and much more. The Common Code Library 
+        can be used independently of the rest of the Abdera2 code. 
+      </t>
+      <t hangText="Client (abdera2-client-2.0-SNAPSHOT.jar):">
+        Contains the generic Abdera2 HTTP Client. Implemented as a thin
+        layer on top of the <eref target="http://hc.apache.org/">Apache 
+        HttpComponents Client</eref>, the Abdera2 Client library provides 
+        a client API for working with REST services.
+      </t>
+      <t hangText="Atom Core (abdera2-core-2.0-SNAPSHOT.jar):">
+        Contains the core of the Atom Syndication Format and Atom Publishing
+        Protocol code, including the Feed Object Model API znc Atom-specific 
+        extensions to the HTTP Client. 
+      </t>
+      <t hangText="Atom Server (abdera2-server-2.0-SNAPSHOT.jar):">
+        Contains the core of the Atom Publishing Protocol Server Framework.
+      </t>
+      <t hangText="Atom Security (abdera2-security-2.0-SNAPSHOT.jar):">
+        Contains the XML Digital Signatures and XML Encryption implementations
+        for the Atom Syndication Format.
+      </t>
+      <t hangText="Atom Extensions ()abdera2-ext-2.0-SNAPSHOT.jar):">
+        Contains a range of standard and common extensions to the Atom
+        Syndication Format including Threading, Paging, Licensing, etc
+      </t>
+      <t hangText="Activity Streams (abdera2-activities-2.0-SNAPSHOT.jar):">
+        Contains the <eref target="http://activitystrea.ms">JSON Activity
+        Streams</eref> implementation. This module depends directly on the
+        Common and Client modules, but can be used independently of all the
+        Atom Syndication Format and Atom Publishing Protocol code.
+      </t>
+    </list></t>
+    
+    <section title="Dependencies">
+    
+    <t>To see the list of dependencies required by Abdera2, you can run the 
+    following command using Maven (<eref target="http://grep.codeconsult.ch/2010/07/08/list-all-your-maven-dependencies/">source</eref>):</t>
+    
+    <figure><artwork>
+mvn -o dependency:list | grep ":.*:.*:.*" | cut -d] -f2- | sed 's/:[a-z]*$//g' | sort -u
+    </artwork></figure>
+       
+    </section>
+   
+    <section title="Maven">
+    
+      <t>To use Abdera2 within a Maven-based project, simply add the following
+      dependencies to you pom.xml:</t>
+      
+      <figure><preamble>Common:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-common</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Client:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-client</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Atom Core:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-core</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Atom Server:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-server</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Atom Security:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-security</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Atom Extensions:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-ext</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <figure><preamble>Activity Streams:</preamble><artwork><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-activities</artifactId>
+  <version>2.0-SNAPSHOT</version>
+</dependency>
+      ]]>
+      </artwork></figure>
+    
+      <t>Maven will automatically pull in all the necessary dependencies
+      for each of the modules.</t>
+    
+    </section>
+    
+  </section>
+
+  </middle>
+  <back></back>
+</rfc>

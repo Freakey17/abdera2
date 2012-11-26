@@ -1,0 +1,516 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Abdera2 - Getting Started</title>
+</head>
+<body>
+<h1>Abdera2 - Getting Started</h1>
+<p>Apache Abdera2 is an updated implementation of the IETF Atom Syndication
+Format (RFC 4287), Atom Publishing Protocol (RFC 5023) and Activity Streams 
+(http://activitystrea.ms) standards.</p>
+
+<h2>Creating and Consuming Atom Documents</h2>
+
+<p>The two most common uses for Abdera are creating and parsing Atom 
+documents.</p>
+
+<p>Minimal required Maven dependency:
+
+<pre><code><![CDATA[
+<dependency>
+    <groupId>org.apache.abdera2</groupId>
+    <artifactId>abdera2-core</artifactId>
+    <version>2.0</version>  
+</dependency>
+]]></code></pre>
+
+<h3>Parsing an Atom Document and printing entry titles</h3>
+
+<p>Example code:</p>
+
+<pre><code><![CDATA[
+Abdera abdera = Abdera.getInstance();
+Parser parser = abdera.getParser();
+          
+URL url = new URL("http://intertwingly.net/blog/index.atom");
+Document<Feed> doc = parser.parse(url.openStream(),url.toString());
+Feed feed = doc.getRoot();
+System.out.println(feed.getTitle());
+for (Entry entry : feed.getEntries()) {
+  System.out.println("\t" + entry.getTitle());
+}
+System.out.println (feed.getAuthor());
+]]></code></pre>
+
+<h3>Creating an Atom Feed Document and adding an entry</h3>
+
+<p>Example code:</p>
+
+<pre><code><![CDATA[
+Abdera abdera = Abdera.getInstance();
+Feed feed = abdera.newFeed();
+ 
+feed.setId("tag:example.org,2007:/foo");
+feed.setTitle("Test Feed");
+feed.setSubtitle("Feed subtitle");
+feed.setUpdated(new Date());
+feed.addAuthor("James Snell");
+feed.addLink("http://example.com");
+feed.addLink("http://example.com/foo","self");
+ 
+Entry entry = feed.addEntry();
+entry.setId("tag:example.org,2007:/foo/entries/1");
+entry.setTitle("Entry title");
+entry.setSummaryAsHtml("<p>This is the entry title</p>");
+entry.setUpdated(new Date());
+entry.setPublished(new Date());
+entry.addLink("http://example.com/foo/entries/1");
+]]></code></pre>
+
+<h3>Instantiating Abdera</h3>
+
+<p>As you can see in both of these examples, the first step to using Abdera is 
+to create an instance of the Abdera object. This special thread-safe class 
+bootstraps the Abdera configuration and provides access to all of the other 
+components. One of the most important tasks that the Abdera object performs 
+is the automatic discovery of extensions.</p>
+
+<p>Creating a new instance of the Abdera object can be time consuming so it 
+is recommended that only a single instance be creating per application. The 
+Abdera object and it's direct children (Parser, Factory, XPath, etc) are 
+threadsafe and can be stored statically.</p>
+
+<p><b>New for Abdera2</b>: The default constructor on the Abdera class has been 
+protected making it impossible to use <code>Abdera abdera = new Abdera()</code> 
+This is to help ensure that only a single Abdera instance is used per application.
+To acquire the singleton, static instance of the Abdera class, use 
+<code>Abdera abdera = Abdera.getInstance()</code>.
+
+<h2>The Atom Publishing Protocol (Atompub)</h2>
+
+<p>TBD</p>
+
+<h2>Creating and Consuming Activity Streams</h2>
+
+<p>Consuming an Activity Stream:</p>
+
+<pre><code><![CDATA[
+IO io = IO.get();
+URL url = new URL("http://example.org/stream.json");
+Collection<Activity> stream = io.readCollection(url.openStream(),"UTF-8");
+for (Activity activity : stream.getItems()) {
+  System.out.println(activity.getTitle());
+}
+]]></code></pre>
+
+<p>Creating an Activity Stream:</p>
+
+<pre><code><![CDATA[
+Collection<Activity> stream =
+  new Collection<Activity>();
+ 
+Activity activity = 
+  new Activity();
+activity.setVerb(Verb.POST);
+ 
+PersonObject actor = 
+  new PersonObject();
+actor.setDisplayName("James");
+activity.setActor(actor);
+ 
+NoteObject note = 
+  new NoteObject();
+note.setContent("This is a note");
+activity.setObject(note);
+  
+stream.addItem(activity);
+ 
+stream.writeTo(System.out);
+]]></code></pre>
+
+<p>Abdera2 also supports a hybrid streaming model for producing Activity Streams:</p>
+
+<pre><code><![CDATA[
+OutputStreamWriter w = 
+  new OutputStreamWriter(System.out, "UTF-8");
+IO io = IO.get();
+CollectionWriter cw = 
+  io.getCollectionWriter(w);
+ 
+ASBase header = new ASBase();
+header.setProperty("totalItems",1);
+cw.writeHeader(header);
+ 
+Activity activity = 
+  new Activity();
+activity.setVerb(Verb.POST);
+ 
+PersonObject actor = 
+  new PersonObject();
+actor.setDisplayName("James");
+activity.setActor(actor);
+ 
+NoteObject note = 
+  new NoteObject();
+note.setContent("This is a note");
+activity.setObject(note);
+ 
+cw.writeObject(activity);
+ 
+cw.complete();
+
+]]></code></pre>
+
+<h2>The Activity Stream Publishing Protocol</h2>
+
+<p>TBD</p>
+
+<h2>Overview of Abdera2 Modules</h2>
+
+<p>As with previous versions, Abdera2 leverages a modular architecture that 
+provides a great deal of flexibility to deploy only the components necessary
+for an application. For this version, the modules have been reorganized.</p> 
+
+<ul>
+  <li>Common - code used throughout all of the other modules
+    <ul>
+      <li>Annotations</li>
+      <li>ISO 8601 DateTime, Duration and Interval Implementation</li>
+      <li>Geographic Coordinates and ISO 6709 Position Implementation</li>
+      <li>HTTP Header support includeing custom authentication, cache-controls,
+      preference negotiation, content negotiation, and web linking.</li>
+      <li>IO Utilities for character set detection, rewindable input streams,
+      and filtered readers</li>
+      <li>Internationalized Resource Identifier (IRI) implementation</li>
+      <li>RFC 4646 Language Tag Implementation</li>
+      <li>MIME Media Type utilities</li>
+      <li>URI Templates implementation based on the most recent draft</li>
+      <li>Utilities for working with Unicode codepoints and normalization</li>
+      <li>A new Selector framework for more intelligent filtering of objects 
+      in the Atom Feed Object Model API</li>
+      <li>A new Pub/Sub "Pusher" framework for enabling asynchronous notification
+      of Atom Entries or Activities</li>
+      <li>The core Publishing Protocol Framework
+    </ul>
+  </li>
+  <li>Core - the core of the Atom Syndication Format implementation.
+    <ul>
+      <li>Feed Object Model - The primary API for Atom documents</li>
+      <li>Axiom-based FOM Implementation - The default implementation of the 
+      Feed Object Model APIs based on Apache Axiom and the StAX Pull Parser</li>
+      <li>The Core Factory and ExtensionFactory framework for creating Atom documents.</li>
+      <li>The Core Parser framework for parsing Atom documents.</li>
+      <li>The Core Writer framework for serializing Atom documents.</li>
+      <li>Support for navigating and querying the Feed Object Model using 
+      XPath expressions.</li>
+    </ul>
+  </li>
+  <li>Client - RESTful HTTP Client implementation that supports both the 
+  Atom Publishing Protocol and Activity Streams.
+  </li>
+  <li>Server - Provides framework code used to build Atom Publishing Protocol servers.
+  </li>
+  <li>Security - Provides support for XML Digital Signatures and XML Encryption of Atom Documents
+  </li>
+  <li>Extensions - Provides support for a number of standard and non-standard extension to the 
+  Atom format:
+    <ul>
+      <li>Atom Threading Extensions</li>
+      <li>Atom License Extension</li>
+      <li>Atom Feature Discovery</li>
+      <li>Atom Bidi Attribute</li>
+      <li>Feed Paging and Archiving</li>
+      <li>GeoRSS</li>
+      <li>Simple Sharing Extensions</li>
+      <li>MediaRSS</li>
+      <li>OpenSearch* -- (Not yet ported to Abdera2)</li>
+    </ul>
+  </li>
+  <li>Activities - Provides an implementation of the Activity Streams standard
+    <ul>
+      <li>Support for consuming and producing Activity Streams</li>
+      <li>Framework code for producing Activity Streams Publishing servers</li>
+      <li>Standard and non-standard extensions to the Activity Streams format</li>
+    </ul>
+  </li>
+  <li>Examples</li>
+  <li>Test Cases</li>
+</ul>
+
+<h2>Classpath</h2>
+
+<h3>Maven</h3>
+
+<pre><code><![CDATA[
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-common</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-core</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-client</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-server</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-security</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-ext</artifactId>
+  <version>2.0</version>
+</dependency>
+ 
+<dependency>
+  <groupId>org.apache.abdera2</groupId>
+  <artifactId>abdera2-activities</artifactId>
+  <version>2.0</version>
+</dependency>
+]]></code></pre>
+
+<h3>Manual Classpath Setup</h3>
+
+<ul>
+  <li>Abdera2 Jars
+    <ul>
+      <li>Common - abdera2-common-2.0-SNAPSHOT.jar
+      <br>Depends on:
+        <ul>
+          <li>Java Activation Framework (JAF) 1.1 (e.g. geronimo-activation_1.1_spec)</li>
+          <li>Java Servlet API 3.0</li>
+          <li>Apache Commons Logging v1.1.1</li>
+          <li>Apache Commons Codec v1.5</li>
+          <li>International Components for Unicode (ICU4J) v4.8.1.1</li>
+        </ul>
+      </li>
+      <li>Core - abdera2-core-2.0-SNAPSHOT.jar
+      <br />Depends on:
+        <ul>
+          <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+          <li>Apache Axiom 1.2.12</li>
+          <li>Jaxen v1.1.1</li>
+          <li>StAX API (e.g. org.codehaus.woodstox v3.2.6)</li>
+        </ul>
+      </li>
+      <li>Security - abdera2-security-2.0-SNAPSHOT.jar
+      <br />Depends on:
+      <ul>
+        <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-core-2.0-SNAPSHOT.jar</li>
+        <li>Apache Santuario XML Security v1.4.5</li>
+      </ul>
+      </li>
+      <li>Client - abdera2-client-2.0-SNAPSHOT.jar
+      <br />Depends on:
+      <ul>
+        <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-core-2.0-SNAPSHOT.jar (required if using Atompub client)</li>
+        <li>Apache HTTP Components v4.1.2 (including httpclient, httpmime, httpcore and httpcache)</li>
+      </ul>
+      </li>
+      <li>Server - abdera2-server-2.0-SNAPSHOT.jar
+      <br />Depends on:
+      <ul>
+        <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-core-2.0-SNAPSHOT.jar</li>
+        <li>Java Servlet API 3.0</li>
+      </ul>
+      </li>
+      <li>Extensions - abdera2-ext-2.0-SNAPSHOT.jar
+      <br />Depends on:
+      <ul>
+        <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-core-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-server-2.0-SNAPSHOT.jar</li>
+        <li>abdera2-client-2.0-SNAPSHOT.jar</li>
+        <li>nu.validator.htmlparser v1.2.1</li>
+        <li>Java Servlet API 3.0</li>
+      </ul>
+      </li>
+      <li>Activities - abdera2-activities-2.0-SNAPSHOT.jar
+      <br/>Depends on:
+      <ul>
+        <li>abdera2-common-2.0-SNAPSHOT.jar</li>
+        <li>com.google.code.gson v1.7.1</li>
+      </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2>Abdera2 HTTP Client API</h2>
+
+<p>In Abdera2, the HTTP Client interface has been significantly updated and 
+factored around the Apache HTTP Components version 4.1.2.</p>
+
+<h3>Generic REST Client</h3>
+
+<p>The Generic REST Client is an HTTP Client that supports all of the core 
+HTTP Methods (get, post, put, delete, head, options, trace) and includes 
+support for extension methods.</p>
+
+<p>Creating the Generic REST Client:</p>
+<pre><code><![CDATA[
+Client client = new BasicClient();
+try {
+  Session session = client.newSession();
+  // session.get(...)
+} finally {
+  client.shutdown();
+}
+]]></code></pre>
+
+<p>Retrieving a Resource (GET):</p>
+
+<pre><code><![CDATA[
+Client client = new BasicClient();
+try {
+  Session session = client.newSession();
+  ClientResponse resp = 
+    session.get(
+      "http://localhost:8080/abdera-server-example/employee");
+  InputStream in =
+    new resp.getInputStream();
+  // read the input stream
+} finally {
+  client.shutdown();
+}
+]]></code></pre>
+
+<p>The ClientResponse object provides access to all of the response headers 
+such as ETag and Last-Modified.</p>
+
+<pre><code><![CDATA[
+System.out.println(resp.getEntityTag());
+System.out.println(resp.getLastModified());
+System.out.println(resp.getContentLocation());
+System.out.println(resp.getSlug());
+]]></code></pre>
+
+<p>Creating resources using HTTP Post:</p>
+
+<pre><code><![CDATA[
+InputStream in = ...
+InputStreamRequestEntity entity = 
+  new InputStreamRequestEntity(in, "image/png");
+ 
+ClientResponse resp = 
+  session.post(
+    "http://www.example.org/collection",entity);
+ 
+if (resp.getType() == ResponseType.SUCCESS) {
+  // success
+} else {
+  // there was an error
+}
+]]></code></pre>
+
+<p>Updating resources using HTTP PUT:</p>
+
+<pre><code><![CDATA[
+InputStream in = ...
+InputStreamRequestEntity entity = 
+  new InputStreamRequestEntity(in, "image/png");
+
+ClientResponse resp = 
+  session.put(
+    "http://www.example.org/collection",entity);
+
+if (resp.getType() == ResponseType.SUCCESS) {
+  // success
+} else {
+  // there was an error
+}
+]]></code></pre>
+
+<p>Deleting resources with HTTP DELETE:</p>
+
+<pre><code><![CDATA[
+ClientResponse resp = 
+  session.delete(
+    "http://www.example.org/collection");
+
+if (resp.getType() == ResponseType.SUCCESS) {
+  // success
+} else {
+  // there was an error
+}
+]]></code></pre>
+
+<p>Using custom HTTP methods:</p>
+
+<pre><code><![CDATA[
+RequestEntity entity = ...
+session.execute(
+  "PATCH", "http://example.org/foo", 
+  entity, null);
+
+if (resp.getType() == ResponseType.SUCCESS) {
+  // success
+} else {
+  // there was an error
+}
+]]></code></pre>
+
+<p>Customizing request options:</p>
+
+<pre><code><![CDATA[
+RequestOptions options = session.getDefaultRequestOptions();
+options.setIfMatch(new EntityTag("foo"));
+options.setNoCache(true);
+
+ClientResponse resp = session.get("http://example.org/foo", options);
+
+if (resp.getType() == ResponseType.SUCCESS) {
+  // success
+} else {
+  // there was an error
+}
+]]></code></pre>
+
+<h3>Using SSL</h3>
+
+<p>TBD</p>
+
+<h3>Authentication</h3>
+
+<p>TBD</p>
+
+<h3>Cookies</h3>
+
+<p>TBD</p>
+
+<h3>Caching</h3>
+
+<p>TBD</p>
+
+<h2>AtomPub Client</h2>
+
+<p>TBD</p>
+
+<h2>Activity Streams Client</h2>
+
+<p>TBD</p>
+
+</body>
+
+
+</html>
