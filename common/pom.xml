@@ -31,7 +31,9 @@
   <packaging>bundle</packaging>
   
   <name>Abdera2 Common Library</name>
-  <version>2.0-SNAPSHOT</version>  
+<!-- 
+  <version>${project.version}</version>  
+ -->
   <description>Abdera2 Common Code Library.</description>
   <url>http://abdera.apache.org</url>
    

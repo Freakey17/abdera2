@@ -16,7 +16,7 @@
     <name>Apache Software Foundation</name>
     <url>http://www.apache.org/</url>
   </organization>
-  
+    
   <issueManagement>
     <system>JIRA</system>
     <url>https://issues.apache.org/jira/browse/ABDERA</url>
@@ -563,6 +563,7 @@
   </distributionManagement>
 
   <properties>
+  	<project.version>2.0-SNAPSHOT-collective-branch</project.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <jetty.version>6.1.24</jetty.version>
     <easymock.version>3.0</easymock.version>
