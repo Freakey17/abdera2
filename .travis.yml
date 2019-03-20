@@ -3,7 +3,7 @@ language: java
 addons:
   sonarcloud:
     organization: "freakey17-github"
-    token: $SONAR_TOKEN4
+    token: $SONAR_TOKEN6
 
 script:
   - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar
